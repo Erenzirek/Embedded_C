@@ -1,67 +1,105 @@
 /*
- * void_pointers_button.c
+ * LCD_Example.c
  *
- * Created: 8.10.2022 23:03:11
+ * Created: 20.09.2022 19:57:20
  * Author : erenz
  */ 
-#ifndef F_CPU
-#define F_CPU 16000000UL
-#endif
+
+#define F_CPU 1000000UL
 #include <avr/io.h>
 #include <util/delay.h>
+#define LCD_Port PORTD // LCD portunu tanýmla (PORTD).
+#define LCD_DataPin DDRD // 4-bit pinleri tanýmla (PORTD4-PORTD7).
+#define RS PD0 // RS pinini tanýmla.
+#define EN PD1 // E pinini tanýmla
 
-#define INIT_PORTS()				do {DDRD = 0xFF; DDRB = 0x00; PORTD = 0x00;} while (0)
-#define BTN_PRESSED					(PINB & (1<<0))
-#define DEBOUNCE_TIME				50
-#define LOOP_TIME					300
-uint8_t state();
-uint8_t state(){
-	
-	if(BTN_PRESSED){
-		_delay_ms(DEBOUNCE_TIME);
-		if (BTN_PRESSED)
-		{
-			return 1;
-		}
-	}
-	return 0;
+void LCD_Komut( unsigned char komut ) // LCD çalýþma kodlarý
+{
+	LCD_Port = (LCD_Port & 0x0F) | (komut & 0xF0); //Veri portuna komut gönderildi.
+	LCD_Port &= ~(1 << RS); //RS=0, gönderilecek bilginin komut olduðu bildirildi.
+	LCD_Port |= (1 << EN); //E=1
+	_delay_us(1);
+	LCD_Port &= ~ (1 << EN); //E=0
+	_delay_us(200);
+	LCD_Port = (LCD_Port & 0x0F) | (komut << 4);
+	LCD_Port |= (1 << EN);
+	_delay_us(1);
+	LCD_Port &= ~(1 << EN);
+	_delay_ms(2);
 }
-	
+
+void LCD_Baslat (void)
+{
+	LCD_DataPin = 0xFF; // LCD pinlerini kontrol et (PORTD4-PORTD7)
+	_delay_ms(15); // LCD etkinleþtirilinceye kadar bekle
+	LCD_Komut(0x02); // 4-bit kontrol
+	LCD_Komut(0x28); // Kontrol matris ayarý
+	LCD_Komut(0x0c); // Ýmleç devre dýþý
+	LCD_Komut(0x06); // Ýmleci taþý
+	LCD_Komut(0x01); // LCD’yi temizle
+	_delay_ms(2); // 2 ms bekle
+}
+
+void LCD_Yaz (char *str) // Karakter dizisini LCD’ye yaz
+{
+	int i;
+	for(i=0; str[i]!=0; i++)
+	{
+		LCD_Port = (LCD_Port & 0x0F) | (str[i] & 0xF0);
+		LCD_Port |= (1 << RS);
+		LCD_Port|= (1 << EN);
+		_delay_us(1);
+		LCD_Port &= ~ (1 << EN);
+		_delay_us(200);
+		LCD_Port = (LCD_Port & 0x0F) | (str[i] << 4);
+		LCD_Port |= (1 << EN);
+		_delay_us(1);
+		LCD_Port &= ~(1 << EN);
+		_delay_ms(2);
+	}
+}
+
+void LCD_Temizle() // LCD temizleme.
+{
+	LCD_Komut (0x01); // LCD’yi temizle.
+	_delay_ms(2); // LCD temizlenene kadar bekle.
+	LCD_Komut (0x80); // Ýmleci 1. satýr, 1. sütun pozisyonuna getir.
+}
+
+
 int main(void)
 {
+	 DDRB = 0x01;
+	//int durum;
+		LCD_Baslat(); // LCD’yi baþlat.
+		LCD_Yaz("Sisteme Hosgeldiniz"); // LCD’ye “LCD EKRAN” yaz.
+		LCD_Komut(0xC0); // 2. satýr, 1. sütuna imleci konumlandýr.
+		LCD_Yaz("UYGULAMASI"); // LED’ye “UYGULAMASI” yaz.
+	while (1)
+	{
+		PORTB = 0b00000001;
+			_delay_ms(100); // Gecikme 10 000 milisaniyedir (10 saniye).
+		PORTB = 0b00000000;
+			_delay_ms(100); // Gecikme 10 000 milisaniyedir (10 saniye).
+
+	}
 	
-    INIT_PORTS();
-	uint8_t led_no = 1;
-    while (1) 
-    {
-		if (state())
-		{
-			switch(led_no)
-			{
-				case 1: 
-					PORTD ^= (1<<0);
-					PORTD ^= (1<<7);
-					break;				
-				case 2:
-					PORTD ^= (1<<1);
-					PORTD ^= (1<<6);
-					break;
-				case 3:
-					PORTD ^= (1<<2);
-					PORTD ^= (1<<5);
-					break;
-				case 4:
-					PORTD ^= (1<<3);
-					PORTD ^= (1<<4);
-					led_no = 0;
-					break;
-			}
-		led_no++;
-		_delay_ms(LOOP_TIME);
-		}
-		}
-	return(0);
-
+	/*
+	switch(){
+	case 1:
+	
+	break;
+	case 2:
+	
+	break;
+	case 3:
+	
+	break;
+	case 4:
+	
+	break;
+	}
+	*/
+		return 0;
 }
-
 
